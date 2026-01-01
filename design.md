@@ -140,6 +140,7 @@ Now OS will redirect stream of packets from PORT 8080 to our program
 There are multiple clients that are sending segments on PORT 8080, we create connection for each of the client separately and that connection will be open until we close it or client close it, OS don't close the connection
 
 ```go
+func NetworkLayer4Main() {
 	listener, err := net.Listen("tcp", ":8080")
 	if err != nil {
 		fmt.Println(err)
@@ -160,9 +161,11 @@ There are multiple clients that are sending segments on PORT 8080, we create con
 
 		message := string(buffer[:length])
 
+		fmt.Println("received message:", message)
+		fmt.Println("processing incoming message...")
 		time.Sleep(10 * time.Second)
+		fmt.Println("incoming message processing completed!")
 
-        // if client is sending 'hi', we are replying 'hey there'
 		if strings.TrimSpace(message) == "hi" {
 			conn.Write([]byte("hey there!\n"))
 		}
@@ -171,4 +174,58 @@ There are multiple clients that are sending segments on PORT 8080, we create con
 		conn.Close()
 	}
 
+}
 ```
+
+## Concurrent TCP Server
+
+- The TCP server that is mentioned above is very simple
+- It asks OS to redirect segments for PORT 8080
+- But it handles the single client at a time, this means second client have to wait until first client completes it's request
+- We can work through that by acceptiong connections from clients as they come and handling each connection in a separate goroutine
+- This again create different set of challenges
+
+```go
+func ConcurrentTCPServerMain() {
+	listener, err := net.Listen("tcp", ":8080")
+	if err != nil {
+		fmt.Println(err)
+		panic("Error connecting to os for tcp listening")
+	}
+	defer listener.Close()
+
+	fmt.Println("successfully connected to os for tcp port 8080!")
+
+	for {
+		conn, _ := listener.Accept()
+		go handleConnection(conn)
+	}
+
+}
+
+func handleConnection(conn net.Conn) {
+	defer conn.Close()
+
+	clientAddress := conn.RemoteAddr().String()
+	fmt.Printf("client [%s] connected\n", clientAddress)
+
+	reader := bufio.NewReader(conn)
+
+	for {
+		message, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Printf("[%s] disconnected\n", clientAddress)
+			return
+		}
+
+		message = strings.TrimSpace(message)
+		fmt.Printf("[%s] received message: %s\n", clientAddress, message)
+
+		resp := fmt.Sprintf("server received: %s\n", message)
+		conn.Write([]byte(resp))
+
+		time.Sleep(5 * time.Second)
+	}
+}
+```
+
