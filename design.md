@@ -45,8 +45,9 @@ Raw TCP (Redis Protocol, 20 Bytes)
 - network layer 2 & above consumes those bytes by following certain protocols to fetch the required information
 - network layer 2 always gets 1518 (or less) bytes, called frame, this is the capacity of transfer for standard ethernet
 - in those 1518 byes, first 6 bytes are src MAC address, next 6 bytes are dest MAC address, next 2 bytes are signal for Layer 3 and remaining bytes are data
-- so each frame is collection of src MAC, dest MAC, Layer 3 helper, data
+- so each frame is collection of unique src MAC, unique dest MAC, Layer 3 helper & data
 
+following go code asks os for frames and fetches the frame details from the received frames
 ```go
 func NetworkLayer2Main() {
 	fd, err := syscall.Socket(syscall.AF_PACKET, syscall.SOCK_RAW, 768)
