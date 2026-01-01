@@ -1,4 +1,4 @@
-### Problem Statement:  
+## Problem Statement:  
 we want to build single node kv store (redis)
 
 key architectural decisions:
@@ -8,12 +8,12 @@ key architectural decisions:
 4. Command Support
 
 
-### Why TCP and not HTTP server?
+## Why TCP and not HTTP server?
 - efficiency and performance
 - HTTP header contains lot of data (heavy corporate envelop)
 - TCP is small (plain letter)
 - TCP allows to have fast parsing
-- TCP allows connection flexibility, we can keep connection open for as much as we like
+- TCP allows connection flexibility, we can keep connection open for as much as we like (hours or days)
 
 HTTP Post (Size: 150-200 Bytes)
 ```http
