@@ -16,7 +16,7 @@ key architectural decisions:
 - TCP allows connection flexibility, we can keep connection open for as much as we like
 
 HTTP Post (Size: 150-200 Bytes)
-```json
+```http
 POST /set HTTP/1.1
 Host: localhost:6379
 User-Agent: Go-Client/1.0
