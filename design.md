@@ -47,7 +47,7 @@ Raw TCP (Redis Protocol, 20 Bytes)
 - in those 1518 byes, first 6 bytes are src MAC address, next 6 bytes are dest MAC address, next 2 bytes are signal for Layer 3 and remaining bytes are data
 - so each frame is collection of unique src MAC, unique dest MAC, Layer 3 helper & data
 
-following go code asks os for frames and fetches the frame details from the received frames
+following go code asks OS for frames and fetches the frame details from the received frames
 ```go
 func NetworkLayer2Main() {
 	fd, err := syscall.Socket(syscall.AF_PACKET, syscall.SOCK_RAW, 768)
@@ -76,6 +76,41 @@ func NetworkLayer2Main() {
 		etherType := fmt.Sprintf("%x%x", incoming[12], incoming[13])
 
 		fmt.Printf("Frame: %s -> %s [Type: 0x%s] Size: %d bytes\n", srcMac, dstMac, etherType, n)
+	}
+}
+```
+
+### Network Layer 3
+
+- Data is passed from layer 2 to layer 3, 18 bits (MAC address + info for layer 3) are stripped from frame and frames are grouped as per their ip addresses to form packets
+- so each packet is a group of related frames that OS collects over a network, large movie is broken into frames, transfered over network, then that frames are again collected to form layer 3 packet
+
+```go
+func NetworkLayer3Main() {
+	conn, err := net.ListenIP("ip4:icmp", &net.IPAddr{IP: net.ParseIP("0.0.0.0")})
+	if err != nil {
+		fmt.Println("Error (Did you run with sudo?):", err)
+		os.Exit(1)
+	}
+	defer conn.Close()
+
+	fmt.Println("Listening for Raw ICMP Packets...")
+
+	incoming := make([]byte, 1024)
+	for {
+
+		length, srcIp, err := conn.ReadFrom(incoming)
+		if err != nil {
+			fmt.Println("got error: ", err)
+			continue
+		}
+
+		fmt.Printf("Received %d bytes from %s\n", length, srcIp)
+
+		data := incoming[:length]
+
+		// fmt.Printf("Data: %v\n", data)
+		fmt.Printf("Text: %s\n", string(data))
 	}
 }
 ```
