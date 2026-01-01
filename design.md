@@ -40,6 +40,7 @@ Raw TCP (Redis Protocol, 20 Bytes)
 - there are network layers
 
 ### Network Layer 1 & 2
+
 - we receive data in form of 0 & 1 bits in layer 1
 - that bits are grouped to form bytes
 - network layer 2 & above consumes those bytes by following certain protocols to fetch the required information
@@ -82,9 +83,10 @@ func NetworkLayer2Main() {
 
 ### Network Layer 3
 
-- Data is passed from layer 2 to layer 3, 18 bits (MAC address + info for layer 3) are stripped from frame and frames are grouped as per their ip addresses to form packets
+- Data is passed from layer 2 to layer 3, 18 bits (MAC address + info for layer 3) are stripped from frame and frames are grouped as per their ip addresses by OS to form packets
 - so each packet is a group of related frames that OS collects over a network, large movie is broken into frames, transfered over network, then that frames are again collected to form layer 3 packet
 
+this code asks OS for ip4 packets and print some details from the packet, it is also possible to print the data from the packet (in for loop)
 ```go
 func NetworkLayer3Main() {
 	conn, err := net.ListenIP("ip4:icmp", &net.IPAddr{IP: net.ParseIP("0.0.0.0")})
@@ -113,4 +115,60 @@ func NetworkLayer3Main() {
 		fmt.Printf("Text: %s\n", string(data))
 	}
 }
+```
+
+### Network Layer 4 (TCP)
+
+- this is real layer where work is kind of handed from OS to software program
+- packets are out of order when received in layer 3, OS collects all packets and order them, OS provides ordered packets to our program as a stream of bytes
+- packets in this layer are called as segments
+- we request OS to give certain kind of segments to us by mentioning PORT, since there are many other application simultaneously looking for TCP segments, we want segments who are sent for us (mentioned by PORT)
+
+We asks OS to give the segments from PORT 8080 to us
+simultaneously EMAIL will be asking for TCP segments from PORT 1010, browser might be asking for TCP segments from PORT 4010 etc  
+
+Now OS will redirect stream of packets from PORT 8080 to our program
+```go
+	listener, err := net.Listen("tcp", ":8080")
+	if err != nil {
+		fmt.Println(err)
+		panic("Error connecting to os for tcp listening")
+	}
+	defer listener.Close()
+```
+
+There are multiple clients that are sending segments on PORT 8080, we create connection for each of the client separately and that connection will be open until we close it or client close it, OS don't close the connection
+
+```go
+	listener, err := net.Listen("tcp", ":8080")
+	if err != nil {
+		fmt.Println(err)
+		panic("Error connecting to os for tcp listening")
+	}
+	defer listener.Close()
+
+	fmt.Println("successfully connected to os for tcp port 8080!")
+
+	for {
+		conn, _ := listener.Accept()
+
+		fmt.Println("accepted client conection..")
+
+		// reading data in chunks of 1024 bytes
+		buffer := make([]byte, 1024)
+		length, _ := conn.Read(buffer)
+
+		message := string(buffer[:length])
+
+		time.Sleep(10 * time.Second)
+
+        // if client is sending 'hi', we are replying 'hey there'
+		if strings.TrimSpace(message) == "hi" {
+			conn.Write([]byte("hey there!\n"))
+		}
+
+		fmt.Println("closing the connection!")
+		conn.Close()
+	}
+
 ```
