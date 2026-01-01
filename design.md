@@ -229,3 +229,10 @@ func handleConnection(conn net.Conn) {
 }
 ```
 
+### Challenge: Client Establishes Connection but doesn't send data - SetReadDeadline
+- That's bad, because Read operation is blocking
+- The goroutine will be blocked until clients sends the data, so you have to wait indefinetly if client never send the data
+- If client connects to your server but never sends the data, it will keep the connection open but you won’t be reading any data from it, this is bad since you have active blocked goroutine waiting for data
+- To avoid this we use SetReadDeadline, where we put the deadline on client to send the data, if he don’t in that timeframe, we simply close the connection
+- Why client is not sending data even after establishing connection - buggy, malicious, attack, slow etc reasons
+- A common and effective pattern that is used is, resetting deadline after each successful read
