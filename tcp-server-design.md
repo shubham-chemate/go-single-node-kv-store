@@ -44,7 +44,7 @@ Raw TCP (Redis Protocol, 20 Bytes)
 - we receive data in form of 0 & 1 bits in layer 1
 - that bits are grouped to form bytes
 - network layer 2 & above consumes those bytes by following certain protocols to fetch the required information
-- network layer 2 always gets 1518 (or less) bytes, called frame, this is the capacity of transfer for standard ethernet
+- network layer 2 always gets data in groups of 1518 (or less) bytes, called frame, this is the capacity of transfer for standard ethernet
 - in those 1518 byes, first 6 bytes are src MAC address, next 6 bytes are dest MAC address, next 2 bytes are signal for Layer 3 and remaining bytes are data
 - so each frame is collection of unique src MAC, unique dest MAC, Layer 3 helper & data
 
@@ -181,7 +181,7 @@ func NetworkLayer4Main() {
 
 - The TCP server that is mentioned above is very simple
 - It asks OS to redirect segments for PORT 8080
-- But it handles the single client at a time, this means second client have to wait until first client completes it's request
+- But it handles the single client at a time, this means second client have to wait until connection of first client is closed
 - We can work through that by acceptiong connections from clients as they come and handling each connection in a separate goroutine
 - This again create different set of challenges
 
