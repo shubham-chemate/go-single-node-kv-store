@@ -14,6 +14,8 @@ import (
 
 // concurrent tcp-server
 // graceful shutdown
+// read deadline
+// panic recovery
 func main() {
 	listener, err := net.Listen("tcp", ":8080")
 	if err != nil {
@@ -26,16 +28,13 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
-	stopClientConn := make(chan struct{})
-
 	var wg sync.WaitGroup
 
-	go handleClients(listener, stopClientConn, &wg)
+	go handleClients(listener, &wg)
 
 	<-quit
 	fmt.Println("Shutdown signal received, shutting down code!")
 	listener.Close()
-	stopClientConn <- struct{}{}
 	close(quit)
 
 	fmt.Println("waiting for active connections to close!")
@@ -44,19 +43,14 @@ func main() {
 	fmt.Println("all connections closed.")
 }
 
-func handleClients(listener net.Listener, stopClientConn chan struct{}, wg *sync.WaitGroup) {
+func handleClients(listener net.Listener, wg *sync.WaitGroup) {
 	fmt.Println("Press CTRL+C to stop gracefully")
 
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			select {
-			case <-stopClientConn:
-				fmt.Println("ERROR: program shutdown signal, not accepting client connections")
-				return
-			default:
-				fmt.Println("error while accepting client connection:", err)
-			}
+			fmt.Println("error while accepting client connection:", err)
+			return
 		}
 
 		wg.Add(1)
@@ -92,9 +86,10 @@ func handleClientConnection(conn net.Conn, wg *sync.WaitGroup) {
 
 		conn.SetReadDeadline(time.Now().Add(30 * time.Second))
 
+		time.Sleep(5 * time.Second)
+
 		resp := fmt.Sprintf("ACK: %s\n", message)
 		conn.Write([]byte(resp))
 
-		time.Sleep(5 * time.Second)
 	}
 }
