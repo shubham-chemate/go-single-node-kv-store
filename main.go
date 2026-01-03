@@ -50,12 +50,13 @@ func handleClients(listener net.Listener, wg *sync.WaitGroup, clientsLimiter cha
 	fmt.Println("Press CTRL+C to stop gracefully")
 
 	for {
-		clientsLimiter <- struct{}{}
 		conn, err := listener.Accept()
 		if err != nil {
 			fmt.Println("error while accepting client connection:", err)
 			return
 		}
+
+		clientsLimiter <- struct{}{}
 
 		wg.Add(1)
 		go handleClientConnection(conn, wg, clientsLimiter)
