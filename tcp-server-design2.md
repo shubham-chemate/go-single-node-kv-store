@@ -5,3 +5,4 @@
 - we are not using scanner, why?
 - shifted to raw bytes
 - what should be max allowed key size?
+- maybe going back to scanner, why?

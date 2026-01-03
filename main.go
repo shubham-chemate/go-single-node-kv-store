@@ -1,15 +1,21 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
+)
+
+const (
+	READ_DEADLINE_TIME = 100
+	MAX_CLIENT_CONN    = 2
 )
 
 // concurrent tcp-server
@@ -21,7 +27,7 @@ func main() {
 	listener, err := net.Listen("tcp", ":8080")
 	if err != nil {
 		fmt.Println(err)
-		panic("Error connecting to OS for tcp listening")
+		panic("error connecting to OS for tcp listening")
 	}
 
 	fmt.Println("successfully connected to OS for tcp port 8080!")
@@ -31,7 +37,7 @@ func main() {
 
 	var wg sync.WaitGroup
 
-	clientsLimiter := make(chan struct{}, 2)
+	clientsLimiter := make(chan struct{}, MAX_CLIENT_CONN)
 
 	go handleClients(listener, &wg, clientsLimiter)
 
@@ -52,8 +58,15 @@ func handleClients(listener net.Listener, wg *sync.WaitGroup, clientsLimiter cha
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			fmt.Println("error while accepting client connection:", err)
-			return
+			// our goroutine was blocked on listener.Accept()
+			// this specific error mostly occurs due to listener.Close()
+			// we want to ignore that error and exit the goroutine
+			if strings.Contains(err.Error(), "use of closed network connection") {
+				return
+			} else {
+				fmt.Println("error while accepting client connection:", err)
+				continue
+			}
 		}
 
 		clientsLimiter <- struct{}{}
@@ -73,48 +86,74 @@ func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter ch
 		}
 	}()
 
-	conn.SetReadDeadline(time.Now().Add(30 * time.Second))
+	conn.SetReadDeadline(time.Now().Add(READ_DEADLINE_TIME * time.Second))
 
 	clientAddress := conn.RemoteAddr().String()
 	fmt.Printf("client [%s] connected\n", clientAddress)
 
-	// reader := bufio.NewReader(conn)
+	reader := bufio.NewReader(conn)
 	// scanner := bufio.NewScanner(conn)
-	buffer := make([]byte, 1024)
+	// buffer := make([]byte, 1024)
 
 	for {
-		// message, err := reader.ReadString('\n')
-		// if err != nil {
-		// 	fmt.Printf("received: %s, client [%s] disconnected.\n", err, clientAddress)
-		// 	return
-		// }
-
-		// message := scanner.Text()
-
-		n, err := conn.Read(buffer)
+		message, err := reader.ReadString('\n')
 		if err != nil {
-			if err == io.EOF {
-				fmt.Printf("[%s] got EOF (nothing to read): %s\n", clientAddress, err)
-			} else {
-				fmt.Printf("[%s] error while reading from connection: %s\n", clientAddress, err)
-			}
+			fmt.Printf("received: %s, client [%s] disconnected.\n", err, clientAddress)
 			return
 		}
 
-		message := string(buffer[:n])
+		resp := "ACK"
+		if strings.HasPrefix(message, "*") || !strings.HasSuffix(message, "\r\n") {
+			message = message[1 : len(message)-2]
 
-		message = strings.TrimSpace(message)
-		fmt.Printf("[%s] received message: %s\n", clientAddress, message)
+			tokenCnt, err := strconv.Atoi(message)
+			if err != nil {
+				fmt.Println("error parsing the token count:", err)
+				return
+			}
 
-		conn.SetReadDeadline(time.Now().Add(30 * time.Second))
+			fmt.Println("token size:", tokenCnt)
 
-		time.Sleep(3 * time.Second)
+			// switch message {
+			// case "SET":
 
-		resp := fmt.Sprintf("ACK: %s\n", message)
+			// case "GET":
+
+			// case "DEL":
+
+			// default:
+			// 	resp = "UNKNOWN COMMAND, received: " + message
+			// }
+		} else {
+			resp = "UNKNOWN FORMAT, received: " + message
+		}
+
+		// message := scanner.Text()
+
+		// n, err := conn.Read(buffer)
+		// if err != nil {
+		// 	if err == io.EOF {
+		// 		fmt.Printf("[%s] got EOF (nothing to read): %s\n", clientAddress, err)
+		// 	} else {
+		// 		fmt.Printf("[%s] error while reading from connection: %s\n", clientAddress, err)
+		// 	}
+		// 	return
+		// }
+
+		// message := string(buffer[:n])
+
+		// message = strings.TrimSpace(message)
+		// fmt.Printf("[%s] received message: %s\n", clientAddress, message)
+
+		conn.SetReadDeadline(time.Now().Add(READ_DEADLINE_TIME * time.Second))
+
+		// time.Sleep(3 * time.Second)
+
+		// resp := fmt.Sprintf("ACK: %s\n", message)
 		conn.Write([]byte(resp))
 	}
 
 	// if err := scanner.Err(); err != nil {
-	// 	fmt.Println("Error in scanner:", err)
+	// 	fmt.Println("error in scanner:", err)
 	// }
 }
