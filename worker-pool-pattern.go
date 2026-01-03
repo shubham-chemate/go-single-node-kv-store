@@ -44,7 +44,7 @@ func printWork(opCh <-chan sq) {
 	}
 }
 
-func WorkerPoolPattern() {
+func WorkerPoolPatternMain() {
 	workCh := make(chan int)
 	opCh := make(chan sq)
 
@@ -63,5 +63,4 @@ func WorkerPoolPattern() {
 	}
 
 	wg.Wait()
-
 }
