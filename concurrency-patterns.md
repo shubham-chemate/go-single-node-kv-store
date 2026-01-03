@@ -180,6 +180,7 @@ func FanOutMain() {
 - for each record in input stream we spawn a new go routine to handle that record
 - here the common scenario is, we can create million+ goroutines for large input
 - we can limit goroutine using blocking nature of channels (buffered)
+- we have also added panic recovery, so that if one worker panics it will not affect others
 
 ```go
 func createWork(workCh chan<- int) {
