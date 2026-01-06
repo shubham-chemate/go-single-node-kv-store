@@ -12,3 +12,7 @@ upcoming
 - process command using concurrent map
 - add log for current active clients (printing after every xy seconds)
 - remove fmt.Printf, adder logger
+- TTL for set command
+    - fix on TTL strategies
+        - automatic eviction
+        - eviction on query
