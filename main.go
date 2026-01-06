@@ -82,50 +82,96 @@ func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter ch
 	defer conn.Close()
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Printf("[%s] PANIC while dealing with connection: %v", conn.RemoteAddr(), r)
+			fmt.Printf("[%s] panic when processing client, message: %v", conn.RemoteAddr(), r)
 		}
 	}()
 
 	conn.SetReadDeadline(time.Now().Add(READ_DEADLINE_TIME * time.Second))
 
 	clientAddress := conn.RemoteAddr().String()
-	fmt.Printf("client [%s] connected\n", clientAddress)
+	fmt.Printf("[%s] client connected\n", clientAddress)
 
 	reader := bufio.NewReader(conn)
 	// scanner := bufio.NewScanner(conn)
 	// buffer := make([]byte, 1024)
 
 	for {
+		// *3\r\n$3\r\nSET\r\n$3\r\npin\r\n$6\r\n414103\r\n
+
 		message, err := reader.ReadString('\n')
 		if err != nil {
-			fmt.Printf("received: %s, client [%s] disconnected.\n", err, clientAddress)
+			fmt.Printf("[%s] client disconnected, received: %s\n", clientAddress, err)
+			resp := "CONNECTION ERROR\n"
+			conn.Write([]byte(resp))
+			return
+		}
+		conn.SetReadDeadline(time.Now().Add(READ_DEADLINE_TIME * time.Second))
+
+		if !strings.HasPrefix(message, "*") || !strings.HasSuffix(message, "\r\n") {
+			fmt.Printf("[%s] unknown format received", clientAddress)
+			resp := "ERROR UNKNOWN FORMAT, received: " + message + "\n"
+			conn.Write([]byte(resp))
 			return
 		}
 
-		resp := "ACK"
-		if strings.HasPrefix(message, "*") || !strings.HasSuffix(message, "\r\n") {
-			message = message[1 : len(message)-2]
+		message = strings.TrimSpace(message[1:])
 
-			tokenCnt, err := strconv.Atoi(message)
+		arraySize, err := strconv.Atoi(message)
+		if err != nil {
+			fmt.Printf("[%s] error parsing the array size: %s", clientAddress, err.Error())
+			resp := "ERROR PARSING THE ARRAY SIZE"
+			conn.Write([]byte(resp))
+			return
+		}
+
+		fmt.Printf("[%s] reading array of size: %d\n", clientAddress, arraySize)
+
+		inputCommand := []string{}
+		for range arraySize {
+			message, err = reader.ReadString('\n')
 			if err != nil {
-				fmt.Println("error parsing the token count:", err)
+				fmt.Printf("[%s] client disconnected, received: %s\n", clientAddress, err)
+				resp := "CONNECTION ERROR\n"
+				conn.Write([]byte(resp))
+				return
+			}
+			conn.SetReadDeadline(time.Now().Add(READ_DEADLINE_TIME * time.Second))
+
+			message = strings.TrimSpace(message[1:])
+			cmdSize, err := strconv.Atoi(message)
+			if err != nil {
+				fmt.Printf("[%s] error parsing the command size: %s", clientAddress, err.Error())
+				resp := "ERROR PARSING THE COMMAND SIZE"
+				conn.Write([]byte(resp))
+				return
+			}
+			// put limit on cmdSize, thinking about 64K Bytes
+			if cmdSize > 64_000 {
+				fmt.Printf("[%d] too huge command input", cmdSize)
+				resp := "ERROR too huge command input"
+				conn.Write([]byte(resp))
 				return
 			}
 
-			fmt.Println("token size:", tokenCnt)
+			message, err = reader.ReadString('\n')
+			if err != nil {
+				fmt.Printf("[%s] client disconnected, received: %s\n", clientAddress, err)
+				resp := "CONNECTION ERROR\n"
+				conn.Write([]byte(resp))
+				return
+			}
+			conn.SetReadDeadline(time.Now().Add(READ_DEADLINE_TIME * time.Second))
 
-			// switch message {
-			// case "SET":
+			message := strings.TrimSpace(message)
+			inputCommand = append(inputCommand, message)
+		}
 
-			// case "GET":
-
-			// case "DEL":
-
-			// default:
-			// 	resp = "UNKNOWN COMMAND, received: " + message
-			// }
-		} else {
-			resp = "UNKNOWN FORMAT, received: " + message
+		err = ProcessCommand(clientAddress, inputCommand)
+		if err != nil {
+			fmt.Printf("[%s] error occurred while processing the command", clientAddress)
+			resp := "ERROR PROCESSING THE COMMAND, message: " + err.Error() + "\n"
+			conn.Write([]byte(resp))
+			return
 		}
 
 		// message := scanner.Text()
@@ -145,11 +191,10 @@ func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter ch
 		// message = strings.TrimSpace(message)
 		// fmt.Printf("[%s] received message: %s\n", clientAddress, message)
 
-		conn.SetReadDeadline(time.Now().Add(READ_DEADLINE_TIME * time.Second))
-
 		// time.Sleep(3 * time.Second)
 
 		// resp := fmt.Sprintf("ACK: %s\n", message)
+		resp := "ACK\n"
 		conn.Write([]byte(resp))
 	}
 
