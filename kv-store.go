@@ -4,7 +4,7 @@ import "sync"
 
 type kvstore struct {
 	mp map[string]string
-	mu sync.Mutex
+	mu sync.RWMutex
 }
 
 // if value already exist, override it
@@ -15,6 +15,8 @@ func (kv *kvstore) SetValue(key, val string) {
 }
 
 func (kv *kvstore) GetValue(key string) string {
+	kv.mu.RLock()
+	defer kv.mu.Unlock()
 	val, ok := kv.mp[key]
 	if !ok {
 		val = "NULL"

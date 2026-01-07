@@ -12,6 +12,7 @@ func readFromClient(clientAddress string, reader *bufio.Reader) (string, error) 
 		if err != nil {
 			return "", err
 		}
+
 		input = append(input, b)
 		if len(input) > MAX_KEY_VAL_SIZE {
 			return "", fmt.Errorf("max allowed key value length exceeded")
