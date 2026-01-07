@@ -18,12 +18,16 @@ const (
 	MAX_CLIENT_CONN    = 2
 )
 
+var store *kvstore
+
 // concurrent tcp-server
 // graceful shutdown
 // read deadline
 // panic recovery
 // reading data
 func main() {
+	store = &kvstore{mp: make(map[string]string)}
+
 	listener, err := net.Listen("tcp", ":8080")
 	if err != nil {
 		fmt.Println(err)
@@ -137,11 +141,18 @@ func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter ch
 			}
 			conn.SetReadDeadline(time.Now().Add(READ_DEADLINE_TIME * time.Second))
 
+			if !strings.HasPrefix(message, "$") || !strings.HasSuffix(message, "\r\n") {
+				fmt.Printf("[%s] unknown format received", clientAddress)
+				resp := "ERROR UNKNOWN FORMAT, received: " + message + "\n"
+				conn.Write([]byte(resp))
+				return
+			}
+
 			message = strings.TrimSpace(message[1:])
 			cmdSize, err := strconv.Atoi(message)
 			if err != nil {
 				fmt.Printf("[%s] error parsing the command size: %s", clientAddress, err.Error())
-				resp := "ERROR PARSING THE COMMAND SIZE"
+				resp := "ERROR PARSING THE COMMAND STRING SIZE"
 				conn.Write([]byte(resp))
 				return
 			}
@@ -166,13 +177,15 @@ func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter ch
 			inputCommand = append(inputCommand, message)
 		}
 
-		err = ProcessCommand(clientAddress, inputCommand)
+		val, err := ProcessCommand(clientAddress, inputCommand)
 		if err != nil {
-			fmt.Printf("[%s] error occurred while processing the command", clientAddress)
+			fmt.Printf("[%s] error occurred while processing the command\n", clientAddress)
 			resp := "ERROR PROCESSING THE COMMAND, message: " + err.Error() + "\n"
 			conn.Write([]byte(resp))
 			return
 		}
+		resp := "ACK\n"
+		resp += val + "\n"
 
 		// message := scanner.Text()
 
@@ -194,7 +207,6 @@ func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter ch
 		// time.Sleep(3 * time.Second)
 
 		// resp := fmt.Sprintf("ACK: %s\n", message)
-		resp := "ACK\n"
 		conn.Write([]byte(resp))
 	}
 
