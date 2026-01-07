@@ -16,6 +16,7 @@ import (
 const (
 	READ_DEADLINE_TIME = 100
 	MAX_CLIENT_CONN    = 2
+	MAX_KEY_VAL_SIZE   = 5
 )
 
 var store *kvstore
@@ -102,7 +103,7 @@ func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter ch
 	for {
 		// *3\r\n$3\r\nSET\r\n$3\r\npin\r\n$6\r\n414103\r\n
 
-		message, err := reader.ReadString('\n')
+		message, err := readFromClient(clientAddress, reader)
 		if err != nil {
 			fmt.Printf("[%s] client disconnected, received: %s\n", clientAddress, err)
 			resp := "CONNECTION ERROR\n"
@@ -132,10 +133,10 @@ func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter ch
 
 		inputCommand := []string{}
 		for range arraySize {
-			message, err = reader.ReadString('\n')
+			message, err := readFromClient(clientAddress, reader)
 			if err != nil {
 				fmt.Printf("[%s] client disconnected, received: %s\n", clientAddress, err)
-				resp := "CONNECTION ERROR\n"
+				resp := "CONNECTION CLOSED\n"
 				conn.Write([]byte(resp))
 				return
 			}
@@ -157,23 +158,23 @@ func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter ch
 				return
 			}
 			// put limit on cmdSize, thinking about 64K Bytes
-			if cmdSize > 64_000 {
-				fmt.Printf("[%d] too huge command input", cmdSize)
-				resp := "ERROR too huge command input"
+			if cmdSize > MAX_KEY_VAL_SIZE {
+				fmt.Printf("[%d] command input exceeded max size allowed\n", cmdSize)
+				resp := "ERROR command input exceeded max size allowed"
 				conn.Write([]byte(resp))
 				return
 			}
 
-			message, err = reader.ReadString('\n')
+			message, err = readFromClient(clientAddress, reader)
 			if err != nil {
 				fmt.Printf("[%s] client disconnected, received: %s\n", clientAddress, err)
-				resp := "CONNECTION ERROR\n"
+				resp := "CONNECTION CLOSED\n"
 				conn.Write([]byte(resp))
 				return
 			}
 			conn.SetReadDeadline(time.Now().Add(READ_DEADLINE_TIME * time.Second))
 
-			message := strings.TrimSpace(message)
+			message = strings.TrimSpace(message)
 			inputCommand = append(inputCommand, message)
 		}
 
