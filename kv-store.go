@@ -21,7 +21,8 @@ func (kv *kvstore) SetValue(key, val string) {
 	kv.mu.Lock()
 	defer kv.mu.Unlock()
 	// 30 seconds from now
-	expirationTime := time.Now().UnixMilli() + int64(30*1_000)
+	expirationTime := time.Now().UnixMilli() + int64(40*1_000)
+	fmt.Println("set expiration time to:", expirationTime)
 	kv.mp[key] = Entry{val, expirationTime}
 }
 
@@ -30,7 +31,7 @@ func (kv *kvstore) GetValue(key string) string {
 	defer kv.mu.Unlock()
 	entry, ok := kv.mp[key]
 	resp := entry.val
-	if !ok {
+	if !ok || entry.expiresAt <= time.Now().UnixMilli() {
 		resp = "NULL"
 	}
 	return resp
@@ -47,24 +48,26 @@ func (kv *kvstore) StartStoreCleaner() {
 	// datasetSize := len(kv.mp) / 5
 	datasetSize := 1
 	for range ticker.C {
-		fmt.Printf("starting store cleaner\n")
+		fmt.Printf("starting store cleaner, time: %d\n", time.Now().UnixMilli())
 
 		kv.mu.Lock()
 
-		count := 0
+		checked := 0
+		deleted := 0
 		for k, entry := range kv.mp {
 			if entry.expiresAt <= time.Now().UnixMilli() {
 				delete(kv.mp, k)
+				deleted++
 			}
-			count++
-			if count > datasetSize {
+			checked++
+			if checked > datasetSize {
 				break
 			}
 		}
 
 		kv.mu.Unlock()
 
-		fmt.Printf("store cleaning complete, cleaned %d keys\n", count)
+		fmt.Printf("store cleaning complete, checked %d & cleaned %d keys, time: %d\n", checked, deleted, time.Now().UnixMilli())
 	}
 
 }

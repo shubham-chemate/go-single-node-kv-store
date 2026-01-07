@@ -17,7 +17,7 @@ const (
 	READ_DEADLINE_TIME = 100
 	MAX_CLIENT_CONN    = 2
 	MAX_KEY_VAL_SIZE   = 5
-	CLEANER_FREQUENCY  = 30
+	CLEANER_FREQUENCY  = 10
 )
 
 var store *kvstore
