@@ -17,6 +17,7 @@ const (
 	READ_DEADLINE_TIME = 100
 	MAX_CLIENT_CONN    = 2
 	MAX_KEY_VAL_SIZE   = 5
+	CLEANER_FREQUENCY  = 30
 )
 
 var store *kvstore
@@ -27,7 +28,8 @@ var store *kvstore
 // panic recovery
 // reading data
 func main() {
-	store = &kvstore{mp: make(map[string]string)}
+	store = &kvstore{mp: make(map[string]Entry)}
+	go store.StartStoreCleaner()
 
 	listener, err := net.Listen("tcp", ":8080")
 	if err != nil {
@@ -106,7 +108,7 @@ func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter ch
 		message, err := readFromClient(clientAddress, reader)
 		if err != nil {
 			fmt.Printf("[%s] client disconnected, received: %s\n", clientAddress, err)
-			resp := "CONNECTION ERROR\n"
+			resp := "CONNECTION CLOSED\n"
 			conn.Write([]byte(resp))
 			return
 		}
