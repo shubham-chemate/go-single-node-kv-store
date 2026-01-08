@@ -28,13 +28,15 @@ func (kv *kvstore) SetValue(key, val string) {
 
 func (kv *kvstore) GetValue(key string) string {
 	kv.mu.RLock()
-	defer kv.mu.Unlock()
+	defer kv.mu.RUnlock()
 	entry, ok := kv.mp[key]
-	resp := entry.val
-	if !ok || entry.expiresAt <= time.Now().UnixMilli() {
-		resp = "NULL"
+	if !ok {
+		return ""
 	}
-	return resp
+	if entry.expiresAt != -1 && entry.expiresAt <= time.Now().UnixMilli() {
+		return ""
+	}
+	return entry.val
 }
 
 func (kv *kvstore) DeleteKey(key string) {

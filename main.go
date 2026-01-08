@@ -14,10 +14,10 @@ import (
 )
 
 const (
-	READ_DEADLINE_TIME = 100
+	READ_DEADLINE_TIME = 60
 	MAX_CLIENT_CONN    = 2
-	MAX_KEY_VAL_SIZE   = 5
-	CLEANER_FREQUENCY  = 10
+	MAX_KEY_VAL_SIZE   = 15
+	CLEANER_FREQUENCY  = 30
 )
 
 var store *kvstore
@@ -31,7 +31,7 @@ func main() {
 	store = &kvstore{mp: make(map[string]Entry)}
 	go store.StartStoreCleaner()
 
-	listener, err := net.Listen("tcp", ":8080")
+	listener, err := net.Listen("tcp", ":6379")
 	if err != nil {
 		fmt.Println(err)
 		panic("error connecting to OS for tcp listening")
@@ -108,7 +108,7 @@ func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter ch
 		message, err := readFromClient(clientAddress, reader)
 		if err != nil {
 			fmt.Printf("[%s] client disconnected, received: %s\n", clientAddress, err)
-			resp := "CONNECTION CLOSED\n"
+			resp := "-ERR connection closed\r\n"
 			conn.Write([]byte(resp))
 			return
 		}
@@ -116,7 +116,7 @@ func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter ch
 
 		if !strings.HasPrefix(message, "*") || !strings.HasSuffix(message, "\r\n") {
 			fmt.Printf("[%s] unknown format received", clientAddress)
-			resp := "ERROR UNKNOWN FORMAT, received: " + message + "\n"
+			resp := "-ERR UNKNOWN FORMAT received: " + message + "\r\n"
 			conn.Write([]byte(resp))
 			return
 		}
@@ -126,7 +126,7 @@ func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter ch
 		arraySize, err := strconv.Atoi(message)
 		if err != nil {
 			fmt.Printf("[%s] error parsing the array size: %s", clientAddress, err.Error())
-			resp := "ERROR PARSING THE ARRAY SIZE"
+			resp := "-ERR PARSING THE ARRAY SIZE\r\n"
 			conn.Write([]byte(resp))
 			return
 		}
@@ -138,7 +138,7 @@ func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter ch
 			message, err := readFromClient(clientAddress, reader)
 			if err != nil {
 				fmt.Printf("[%s] client disconnected, received: %s\n", clientAddress, err)
-				resp := "CONNECTION CLOSED\n"
+				resp := "-ERR CONNECTION CLOSED\r\n"
 				conn.Write([]byte(resp))
 				return
 			}
@@ -146,7 +146,7 @@ func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter ch
 
 			if !strings.HasPrefix(message, "$") || !strings.HasSuffix(message, "\r\n") {
 				fmt.Printf("[%s] unknown format received", clientAddress)
-				resp := "ERROR UNKNOWN FORMAT, received: " + message + "\n"
+				resp := "-ERR UNKNOWN FORMAT received: " + message + "\r\n"
 				conn.Write([]byte(resp))
 				return
 			}
@@ -155,14 +155,20 @@ func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter ch
 			cmdSize, err := strconv.Atoi(message)
 			if err != nil {
 				fmt.Printf("[%s] error parsing the command size: %s", clientAddress, err.Error())
-				resp := "ERROR PARSING THE COMMAND STRING SIZE"
+				resp := "-ERR PARSING THE COMMAND STRING SIZE\r\n"
 				conn.Write([]byte(resp))
 				return
 			}
 			// put limit on cmdSize, thinking about 64K Bytes
 			if cmdSize > MAX_KEY_VAL_SIZE {
-				fmt.Printf("[%d] command input exceeded max size allowed\n", cmdSize)
-				resp := "ERROR command input exceeded max size allowed"
+				fmt.Printf("[%s] command input exceeded max size allowed, allowed/given, %d/%d\n", clientAddress, MAX_CLIENT_CONN, cmdSize)
+				resp := "-ERR command input exceeded max size allowed\r\n"
+				conn.Write([]byte(resp))
+				return
+			}
+			if cmdSize < 1 {
+				fmt.Printf("[%s] empty command size not allowed", clientAddress)
+				resp := "-ERR empty command size\r\n"
 				conn.Write([]byte(resp))
 				return
 			}
@@ -170,7 +176,7 @@ func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter ch
 			message, err = readFromClient(clientAddress, reader)
 			if err != nil {
 				fmt.Printf("[%s] client disconnected, received: %s\n", clientAddress, err)
-				resp := "CONNECTION CLOSED\n"
+				resp := "-ERR CONNECTION CLOSED\r\n"
 				conn.Write([]byte(resp))
 				return
 			}
@@ -180,15 +186,13 @@ func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter ch
 			inputCommand = append(inputCommand, message)
 		}
 
-		val, err := ProcessCommand(clientAddress, inputCommand)
+		resp, err := ProcessCommand(clientAddress, inputCommand)
 		if err != nil {
-			fmt.Printf("[%s] error occurred while processing the command\n", clientAddress)
-			resp := "ERROR PROCESSING THE COMMAND, message: " + err.Error() + "\n"
+			fmt.Printf("[%s] error occurred while processing the command, command is: %s\n", clientAddress, inputCommand)
+			resp := "-ERR PROCESSING THE COMMAND, message: " + err.Error() + "\r\n"
 			conn.Write([]byte(resp))
 			return
 		}
-		resp := "ACK\n"
-		resp += val + "\n"
 
 		// message := scanner.Text()
 
