@@ -16,13 +16,13 @@ upcoming
         - automatic eviction
         - eviction on query
     - add TTL in RESP
+- [x] remove fmt.Printf, adder logger
 - [ ] write doc
     - should include parsing protocol
     - should include reader strategies, types of reader, byte reader, bulk reading
     - should include concurrent map
     - should include TTL
     - should include logging vs printing : may drop this doc, since it's pretty obvious to have logs instead of printf
-- [ ] remove fmt.Printf, adder logger
 - [ ] multiple maps for better concurrency
 - [ ] utilize size of string to have bulk reading in client reading
 - [ ] add log / goroutine for current active clients, current cache size (printing after every xy seconds)
@@ -65,4 +65,29 @@ SET: 4073.15 requests per second, p50=2138.111 msec
 GET: 5868.89 requests per second, p50=1265.663 msec 
 iteration3:
 SET: 4019.94 requests per second, p50=2125.823 msec                      
-GET: 7231.70 requests per second, p50=1096.703 msec                     
+GET: 7231.70 requests per second, p50=1096.703 msec
+
+improved a bit on logging (removed HOT PATH logs)
+iteration1:
+SET: 183150.19 requests per second, p50=25.951 msec                     
+GET: 187265.92 requests per second, p50=25.615 msec
+iteration2:
+SET: 178890.88 requests per second, p50=26.191 msec                     
+GET: 190114.06 requests per second, p50=25.231 msec                     
+iteration3:
+SET: 176366.86 requests per second, p50=26.463 msec                     
+GET: 175746.92 requests per second, p50=26.815 msec
+
+### v3 : read optimizations
+command: redis-benchmark -p 6379 -t set,get -c 10000 -n 100000 -q
+iteration1:
+SET: 179211.45 requests per second, p50=26.063 msec                     
+GET: 187265.92 requests per second, p50=25.103 msec
+iteration2:
+SET: 180831.83 requests per second, p50=25.807 msec                     
+GET: 187969.92 requests per second, p50=25.727 msec
+iteration3:
+SET: 179211.45 requests per second, p50=26.255 msec
+GET: 180831.83 requests per second, p50=26.207 msec
+
+### v4 : multiple maps, hashing

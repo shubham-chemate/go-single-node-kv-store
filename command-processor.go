@@ -8,7 +8,7 @@ import (
 )
 
 func ProcessCommand(clientAddress string, cmd []string) (string, error) {
-	slog.Info("processing command", "command", cmd)
+	// slog.Info("processing command", "command", cmd)
 
 	if len(cmd) < 1 {
 		return "", fmt.Errorf("INVALID COMMAND LENGTH")

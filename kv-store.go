@@ -25,7 +25,7 @@ func (kv *kvstore) SetValue(key, val string, ttl int64) {
 	if ttl == -1 {
 		expirationTime = -1
 	}
-	slog.Info("adding key to map", "key", key, "val", val, "expiration time", expirationTime)
+	// slog.Info("adding key to map", "key", key, "val", val, "expiration time", expirationTime)
 	kv.mp[key] = Entry{val, expirationTime}
 }
 

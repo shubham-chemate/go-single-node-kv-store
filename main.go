@@ -113,7 +113,7 @@ func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter ch
 	for {
 		// *3\r\n$3\r\nSET\r\n$3\r\npin\r\n$6\r\n414103\r\n
 
-		message, err := readFromClient(clientAddress, reader)
+		message, err := readSizeFromClient(clientAddress, reader)
 		if err != nil {
 			logger.Info("client disconnected", "msg", err.Error())
 			resp := "-ERR connection closed\r\n"
@@ -139,11 +139,11 @@ func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter ch
 			return
 		}
 
-		logger.Info("reading array", "size", arraySize)
+		// logger.Info("reading array", "size", arraySize)
 
 		inputCommand := []string{}
 		for range arraySize {
-			message, err := readFromClient(clientAddress, reader)
+			message, err := readSizeFromClient(clientAddress, reader)
 			if err != nil {
 				logger.Info("client disconnected", "msg", err.Error())
 				resp := "-ERR CONNECTION CLOSED\r\n"
@@ -181,7 +181,7 @@ func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter ch
 				return
 			}
 
-			message, err = readFromClient(clientAddress, reader)
+			message, err = readStringOfGivenSize(clientAddress, reader, cmdSize)
 			if err != nil {
 				logger.Info("client disconnected", "msg", err.Error())
 				resp := "-ERR CONNECTION CLOSED\r\n"
