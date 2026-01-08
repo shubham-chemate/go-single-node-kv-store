@@ -15,9 +15,9 @@ import (
 
 const (
 	READ_DEADLINE_TIME = 60
-	MAX_CLIENT_CONN    = 100000
+	MAX_CLIENT_CONN    = 12000
 	MAX_KEY_VAL_SIZE   = 1000
-	CLEANER_FREQUENCY  = 20
+	CLEANER_FREQUENCY  = 40
 )
 
 var store *kvstore
