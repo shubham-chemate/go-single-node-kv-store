@@ -17,12 +17,15 @@ type kvstore struct {
 }
 
 // if value already exist, override it
-func (kv *kvstore) SetValue(key, val string) {
+func (kv *kvstore) SetValue(key, val string, ttl int64) {
 	kv.mu.Lock()
 	defer kv.mu.Unlock()
 	// 30 seconds from now
-	expirationTime := time.Now().UnixMilli() + int64(40*1_000)
-	fmt.Println("set expiration time to:", expirationTime)
+	expirationTime := time.Now().UnixMilli() + ttl*1_000
+	if ttl == -1 {
+		expirationTime = -1
+	}
+	fmt.Printf("key: %s, expiration time: %d\n", key, expirationTime)
 	kv.mp[key] = Entry{val, expirationTime}
 }
 
@@ -57,7 +60,7 @@ func (kv *kvstore) StartStoreCleaner() {
 		checked := 0
 		deleted := 0
 		for k, entry := range kv.mp {
-			if entry.expiresAt <= time.Now().UnixMilli() {
+			if entry.expiresAt != -1 && entry.expiresAt <= time.Now().UnixMilli() {
 				delete(kv.mp, k)
 				deleted++
 			}

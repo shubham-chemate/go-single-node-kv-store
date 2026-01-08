@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -19,10 +20,18 @@ func ProcessCommand(clientAddress string, cmd []string) (string, error) {
 	case "PING":
 		resp = "+OK\r\n"
 	case "SET":
-		if len(cmd) != 3 {
+		if len(cmd) == 3 {
+			store.SetValue(cmd[1], cmd[2], -1)
+		} else if len(cmd) == 4 {
+			ttl, err := strconv.Atoi(cmd[3])
+			if err != nil {
+				fmt.Printf("[%s] invalid ttl: %s", clientAddress, cmd[3])
+				return "", fmt.Errorf("INVALID TTL")
+			}
+			store.SetValue(cmd[1], cmd[2], int64(ttl))
+		} else {
 			return "", fmt.Errorf("INVALID COMMAND")
 		}
-		store.SetValue(cmd[1], cmd[2])
 		resp = "+OK\r\n"
 	case "GET":
 		if len(cmd) != 2 {
