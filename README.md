@@ -16,20 +16,23 @@ upcoming
         - automatic eviction
         - eviction on query
     - add TTL in RESP
-- [ ] write parser doc
+- [ ] write doc
     - should include parsing protocol
-    - should include reader
-- [ ] add log / goroutine for current active clients, current cache size (printing after every xy seconds)
+    - should include reader strategies, types of reader, byte reader, bulk reading
+    - should include concurrent map
+    - should include TTL
+    - should include logging vs printing : may drop this doc, since it's pretty obvious to have logs instead of printf
 - [ ] remove fmt.Printf, adder logger
 - [ ] multiple maps for better concurrency
 - [ ] utilize size of string to have bulk reading in client reading
+- [ ] add log / goroutine for current active clients, current cache size (printing after every xy seconds)
 - [ ] append only file / persistence
 
 
 benchmarks
 
 #### v1
-command: redis-benchmark -p 6379 -t set,get -c 10000 -n 1000000 -q
+command: redis-benchmark -p 6379 -t set,get -c 100000 -n 100000 -q
 output1:
 output2:
 output3:

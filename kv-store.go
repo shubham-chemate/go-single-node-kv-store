@@ -20,7 +20,7 @@ type kvstore struct {
 func (kv *kvstore) SetValue(key, val string, ttl int64) {
 	kv.mu.Lock()
 	defer kv.mu.Unlock()
-	// 30 seconds from now
+	// ttl seconds from now
 	expirationTime := time.Now().UnixMilli() + ttl*1_000
 	if ttl == -1 {
 		expirationTime = -1
@@ -48,10 +48,10 @@ func (kv *kvstore) DeleteKey(key string) {
 	delete(kv.mp, key)
 }
 
+// in one iteration we only check 20% map
 func (kv *kvstore) StartStoreCleaner() {
 	ticker := time.NewTicker(CLEANER_FREQUENCY * time.Second)
-	// datasetSize := len(kv.mp) / 5
-	datasetSize := 1
+	datasetSize := len(kv.mp) / 5
 	for range ticker.C {
 		fmt.Printf("starting store cleaner, time: %d\n", time.Now().UnixMilli())
 
