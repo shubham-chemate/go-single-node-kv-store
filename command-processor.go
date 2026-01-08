@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 )
 
 func ProcessCommand(clientAddress string, cmd []string) (string, error) {
-	fmt.Printf("[%s] PROCESS COMMAND, %s\n", clientAddress, cmd)
+	slog.Info("processing command", "command", cmd)
 
 	if len(cmd) < 1 {
 		return "", fmt.Errorf("INVALID COMMAND LENGTH")
@@ -25,7 +26,7 @@ func ProcessCommand(clientAddress string, cmd []string) (string, error) {
 		} else if len(cmd) == 4 {
 			ttl, err := strconv.Atoi(cmd[3])
 			if err != nil {
-				fmt.Printf("[%s] invalid ttl: %s", clientAddress, cmd[3])
+				slog.Error("invalid ttl", "received", cmd[3])
 				return "", fmt.Errorf("INVALID TTL")
 			}
 			store.SetValue(cmd[1], cmd[2], int64(ttl))

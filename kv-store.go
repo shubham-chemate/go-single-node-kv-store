@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 )
@@ -25,7 +25,7 @@ func (kv *kvstore) SetValue(key, val string, ttl int64) {
 	if ttl == -1 {
 		expirationTime = -1
 	}
-	fmt.Printf("key: %s, expiration time: %d\n", key, expirationTime)
+	slog.Info("adding key to map", "key", key, "val", val, "expiration time", expirationTime)
 	kv.mp[key] = Entry{val, expirationTime}
 }
 
@@ -48,12 +48,12 @@ func (kv *kvstore) DeleteKey(key string) {
 	delete(kv.mp, key)
 }
 
-// in one iteration we only check 20% map
+// in one iteration we only check 20% random keys from map
 func (kv *kvstore) StartStoreCleaner() {
 	ticker := time.NewTicker(CLEANER_FREQUENCY * time.Second)
 	datasetSize := len(kv.mp) / 5
 	for range ticker.C {
-		fmt.Printf("starting store cleaner, time: %d\n", time.Now().UnixMilli())
+		slog.Info("starting store cleaner", "unix milli now", time.Now().UnixMilli())
 
 		kv.mu.Lock()
 
@@ -72,7 +72,7 @@ func (kv *kvstore) StartStoreCleaner() {
 
 		kv.mu.Unlock()
 
-		fmt.Printf("store cleaning complete, checked %d & cleaned %d keys, time: %d\n", checked, deleted, time.Now().UnixMilli())
+		slog.Info("store cleaning complete", "checked", checked, "cleaned", deleted, "unix millis now", time.Now().UnixMilli())
 	}
 
 }

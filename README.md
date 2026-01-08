@@ -31,7 +31,7 @@ upcoming
 
 benchmarks
 
-#### v1
+#### v1 : baseline
 command: redis-benchmark -p 6379 -t set,get -c 10000 -n 100000 -q
 ```go
 	READ_DEADLINE_TIME = 60
@@ -48,3 +48,21 @@ GET: 18409.43 requests per second, p50=389.119 msec
 iteration3:
 SET: 10722.71 requests per second, p50=797.183 msec
 GET: 18315.02 requests per second, p50=392.959 msec
+
+### v2 : added logger, slog
+command: redis-benchmark -p 6379 -t set,get -c 10000 -n 100000 -q
+```go
+	READ_DEADLINE_TIME = 60
+	MAX_CLIENT_CONN    = 12000
+	MAX_KEY_VAL_SIZE   = 1000
+	CLEANER_FREQUENCY  = 40
+```
+iteration1:
+SET: 5088.02 requests per second, p50=1958.911 msec                     
+GET: 7352.94 requests per second, p50=1078.271 msec
+iteration2:
+SET: 4073.15 requests per second, p50=2138.111 msec                      
+GET: 5868.89 requests per second, p50=1265.663 msec 
+iteration3:
+SET: 4019.94 requests per second, p50=2125.823 msec                      
+GET: 7231.70 requests per second, p50=1096.703 msec                     

@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"log/slog"
 )
 
 func readFromClient(clientAddress string, reader *bufio.Reader) (string, error) {
@@ -25,7 +26,7 @@ func readFromClient(clientAddress string, reader *bufio.Reader) (string, error) 
 
 	resp := string(input)
 
-	fmt.Printf("[%s] read: %s", clientAddress, resp)
+	slog.Info("reading bytes", "read", resp)
 
 	return resp, nil
 }

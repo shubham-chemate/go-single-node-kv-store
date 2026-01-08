@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	"os/signal"
@@ -28,16 +29,19 @@ var store *kvstore
 // panic recovery
 // reading data
 func main() {
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
+
 	store = &kvstore{mp: make(map[string]Entry)}
 	go store.StartStoreCleaner()
 
 	listener, err := net.Listen("tcp", ":6379")
 	if err != nil {
-		fmt.Println(err)
+		slog.Error(err.Error())
 		panic("error connecting to OS for tcp listening")
 	}
 
-	fmt.Println("successfully connected to OS for tcp port 8080!")
+	slog.Info("successfully connected to OS for tcp port 8080!")
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
@@ -49,18 +53,19 @@ func main() {
 	go handleClients(listener, &wg, clientsLimiter)
 
 	<-quit
-	fmt.Println("Shutdown signal received, shutting down code!")
+
+	slog.Info("Shutdown signal received, shutting down program!")
 	listener.Close()
 	close(quit)
 
-	fmt.Println("waiting for active connections to close!")
+	slog.Info("waiting for active connections to close!")
 	wg.Wait()
 
-	fmt.Println("all connections closed.")
+	slog.Info("all connections closed.")
 }
 
 func handleClients(listener net.Listener, wg *sync.WaitGroup, clientsLimiter chan struct{}) {
-	fmt.Println("Press CTRL+C to stop gracefully")
+	slog.Info("Press CTRL+C to stop gracefully")
 
 	for {
 		conn, err := listener.Accept()
@@ -71,7 +76,7 @@ func handleClients(listener net.Listener, wg *sync.WaitGroup, clientsLimiter cha
 			if strings.Contains(err.Error(), "use of closed network connection") {
 				return
 			} else {
-				fmt.Println("error while accepting client connection:", err)
+				slog.Error("error while accepting new client connection: ", "ERROR", err.Error())
 				continue
 			}
 		}
@@ -93,10 +98,13 @@ func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter ch
 		}
 	}()
 
+	clientAddress := conn.RemoteAddr().String()
+
+	logger := slog.With("client_address", clientAddress)
+
 	conn.SetReadDeadline(time.Now().Add(READ_DEADLINE_TIME * time.Second))
 
-	clientAddress := conn.RemoteAddr().String()
-	fmt.Printf("[%s] client connected\n", clientAddress)
+	logger.Info("client connected")
 
 	reader := bufio.NewReader(conn)
 	// scanner := bufio.NewScanner(conn)
@@ -107,7 +115,7 @@ func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter ch
 
 		message, err := readFromClient(clientAddress, reader)
 		if err != nil {
-			fmt.Printf("[%s] client disconnected, received: %s\n", clientAddress, err)
+			logger.Info("client disconnected", "msg", err.Error())
 			resp := "-ERR connection closed\r\n"
 			conn.Write([]byte(resp))
 			return
@@ -115,7 +123,7 @@ func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter ch
 		conn.SetReadDeadline(time.Now().Add(READ_DEADLINE_TIME * time.Second))
 
 		if !strings.HasPrefix(message, "*") || !strings.HasSuffix(message, "\r\n") {
-			fmt.Printf("[%s] unknown format received", clientAddress)
+			logger.Error("unknown format for size of array")
 			resp := "-ERR UNKNOWN FORMAT received: " + message + "\r\n"
 			conn.Write([]byte(resp))
 			return
@@ -125,19 +133,19 @@ func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter ch
 
 		arraySize, err := strconv.Atoi(message)
 		if err != nil {
-			fmt.Printf("[%s] error parsing the array size: %s", clientAddress, err.Error())
+			logger.Error("invalid value for array size", "received", message, "msg", err.Error())
 			resp := "-ERR PARSING THE ARRAY SIZE\r\n"
 			conn.Write([]byte(resp))
 			return
 		}
 
-		fmt.Printf("[%s] reading array of size: %d\n", clientAddress, arraySize)
+		logger.Info("reading array", "size", arraySize)
 
 		inputCommand := []string{}
 		for range arraySize {
 			message, err := readFromClient(clientAddress, reader)
 			if err != nil {
-				fmt.Printf("[%s] client disconnected, received: %s\n", clientAddress, err)
+				logger.Info("client disconnected", "msg", err.Error())
 				resp := "-ERR CONNECTION CLOSED\r\n"
 				conn.Write([]byte(resp))
 				return
@@ -145,7 +153,7 @@ func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter ch
 			conn.SetReadDeadline(time.Now().Add(READ_DEADLINE_TIME * time.Second))
 
 			if !strings.HasPrefix(message, "$") || !strings.HasSuffix(message, "\r\n") {
-				fmt.Printf("[%s] unknown format received", clientAddress)
+				logger.Error("invalid format of string size", "received", message)
 				resp := "-ERR UNKNOWN FORMAT received: " + message + "\r\n"
 				conn.Write([]byte(resp))
 				return
@@ -154,20 +162,20 @@ func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter ch
 			message = strings.TrimSpace(message[1:])
 			cmdSize, err := strconv.Atoi(message)
 			if err != nil {
-				fmt.Printf("[%s] error parsing the command size: %s", clientAddress, err.Error())
+				logger.Error("invalid value of string size", "received", message, "msg", err.Error())
 				resp := "-ERR PARSING THE COMMAND STRING SIZE\r\n"
 				conn.Write([]byte(resp))
 				return
 			}
 			// put limit on cmdSize, thinking about 64K Bytes
 			if cmdSize > MAX_KEY_VAL_SIZE {
-				fmt.Printf("[%s] command input exceeded max size allowed, allowed/given, %d/%d\n", clientAddress, MAX_CLIENT_CONN, cmdSize)
+				logger.Error("string size exceeded max size allowed", "allowed", MAX_KEY_VAL_SIZE, "given", cmdSize)
 				resp := "-ERR command input exceeded max size allowed\r\n"
 				conn.Write([]byte(resp))
 				return
 			}
 			if cmdSize < 1 {
-				fmt.Printf("[%s] empty command size not allowed", clientAddress)
+				logger.Error("empty command size not allowed")
 				resp := "-ERR empty command size\r\n"
 				conn.Write([]byte(resp))
 				return
@@ -175,7 +183,7 @@ func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter ch
 
 			message, err = readFromClient(clientAddress, reader)
 			if err != nil {
-				fmt.Printf("[%s] client disconnected, received: %s\n", clientAddress, err)
+				logger.Info("client disconnected", "msg", err.Error())
 				resp := "-ERR CONNECTION CLOSED\r\n"
 				conn.Write([]byte(resp))
 				return
@@ -188,7 +196,7 @@ func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter ch
 
 		resp, err := ProcessCommand(clientAddress, inputCommand)
 		if err != nil {
-			fmt.Printf("[%s] error occurred while processing the command, command is: %s\n", clientAddress, inputCommand)
+			logger.Info("error occurred while processing the command", "command", inputCommand)
 			resp := "-ERR PROCESSING THE COMMAND, message: " + err.Error() + "\r\n"
 			conn.Write([]byte(resp))
 			return
