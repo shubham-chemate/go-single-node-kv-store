@@ -23,13 +23,14 @@ upcoming
     - should include concurrent map
     - should include TTL
     - should include logging vs printing : may drop this doc, since it's pretty obvious to have logs instead of printf
-- [ ] multiple maps for better concurrency
-- [ ] utilize size of string to have bulk reading in client reading
+    - hashing that is used to select from multiple maps
+- [x] multiple maps for better concurrency
+- [x] utilize size of string to have bulk reading in client reading
 - [ ] add log / goroutine for current active clients, current cache size (printing after every xy seconds)
 - [ ] append only file / persistence
 
 
-benchmarks
+## Benchmarks
 
 #### v1 : baseline
 command: redis-benchmark -p 6379 -t set,get -c 10000 -n 100000 -q
@@ -49,7 +50,7 @@ iteration3:
 SET: 10722.71 requests per second, p50=797.183 msec
 GET: 18315.02 requests per second, p50=392.959 msec
 
-### v2 : added logger, slog
+#### v2 : added logger, slog
 command: redis-benchmark -p 6379 -t set,get -c 10000 -n 100000 -q
 ```go
 	READ_DEADLINE_TIME = 60
@@ -78,7 +79,7 @@ iteration3:
 SET: 176366.86 requests per second, p50=26.463 msec                     
 GET: 175746.92 requests per second, p50=26.815 msec
 
-### v3 : read optimizations
+#### v3 : read optimizations
 command: redis-benchmark -p 6379 -t set,get -c 10000 -n 100000 -q
 iteration1:
 SET: 179211.45 requests per second, p50=26.063 msec                     
@@ -90,4 +91,19 @@ iteration3:
 SET: 179211.45 requests per second, p50=26.255 msec
 GET: 180831.83 requests per second, p50=26.207 msec
 
-### v4 : multiple maps, hashing
+#### v4 : multiple maps, hashing
+command: redis-benchmark -p 6379 -t set,get -c 10000 -n 100000 -q
+iteration1:
+SET: 178890.88 requests per second, p50=26.079 msec                     
+GET: 178253.12 requests per second, p50=26.719 msec  
+iteration2:
+SET: 184501.84 requests per second, p50=25.695 msec
+GET: 186219.73 requests per second, p50=25.647 msec
+iteration3:
+SET: 180505.41 requests per second, p50=25.967 msec
+GET: 181488.20 requests per second, p50=26.111 msec
+
+command: redis-benchmark -p 6379 -t set,get -c 50 -n 100000 -q
+SET: 238095.25 requests per second, p50=0.127 msec
+GET: 272479.56 requests per second, p50=0.111 msec
+here we can see that there is immense improvement in the p50 latency

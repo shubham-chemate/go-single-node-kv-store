@@ -17,12 +17,12 @@ type kvstore struct {
 }
 
 // if value already exist, override it
-func (kv *kvstore) SetValue(key, val string, ttl int64) {
+func (kv *kvstore) SetValue(key, val string, ttlInSecond int64) {
 	kv.mu.Lock()
 	defer kv.mu.Unlock()
 	// ttl seconds from now
-	expirationTime := time.Now().UnixMilli() + ttl*1_000
-	if ttl == -1 {
+	expirationTime := time.Now().UnixMilli() + ttlInSecond*1_000
+	if ttlInSecond == -1 {
 		expirationTime = -1
 	}
 	// slog.Info("adding key to map", "key", key, "val", val, "expiration time", expirationTime)

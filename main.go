@@ -19,9 +19,10 @@ const (
 	MAX_CLIENT_CONN    = 12000
 	MAX_KEY_VAL_SIZE   = 1000
 	CLEANER_FREQUENCY  = 40
+	NUMBER_OF_SHARDS   = 32
 )
 
-var store *kvstore
+var store *ShardedStore
 
 // concurrent tcp-server
 // graceful shutdown
@@ -32,8 +33,7 @@ func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
 
-	store = &kvstore{mp: make(map[string]Entry)}
-	go store.StartStoreCleaner()
+	store = GetNewShardedStore(NUMBER_OF_SHARDS)
 
 	listener, err := net.Listen("tcp", ":6379")
 	if err != nil {
