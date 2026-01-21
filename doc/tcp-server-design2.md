@@ -29,7 +29,7 @@
 - since our server is concurrent, many clients will be interacting with our server at once
 - we don't want to crash our server if particular client fails (panic situation), (we are assuming our main code is not failing)
 - since we are handling each client in it's separate goroutine, we have ability to handle panic recovery inside that go routine only
-- we have added recover in the defer statement, so our go routine get's recovered before crashing entire system
+- we have added recover in the defer statement, so our goroutine get's recovered before crashing entire system
 
 ### Read Deadline
 - since we have persistent connection with client and OS don't have any hard limit on the time for which we can keep TCP connection alive
