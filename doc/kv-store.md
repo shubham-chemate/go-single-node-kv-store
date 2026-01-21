@@ -21,3 +21,5 @@
 - we created shared store which is basically a collection of regular KV stores
 - the methods are simple, for each method we will going to first create hash of the input key to determin the shard and then we will make that shard to handle that particular input key
 - we have used fnv hash function provided by golang standard library, as per my research it is fast and distribute keys evenly, we really don't need cryptographic hash functions as they are computationaly heavy
+
+![Alt text for the image](./sharded-kv-store.png)
