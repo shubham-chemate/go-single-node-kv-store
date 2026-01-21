@@ -1,8 +1,13 @@
 # go-single-node-kv-store
 
-Benchmarking
-- High Reads vs High Writes
-- Multiple Clients (100K), each focused on huge reads/writes, 20% writes, 80% reads
+- In the ./doc folder, I've written every small decisions and learnings. I've typed all by myself and not used LLM for even a single word
+- Logs are much better for concurrent applications since they are thread safe, just mentioning.
+- Initially the performance with log of logs was too bad, we were hitting on an average 13K RPS for SET and 10K RPS for GET, the bottleneck was I was printing every single read command to the log (10K concurrent clients, each sending 100K requests)
+- After removing the unecessary logs and optimizing logging for readability, was able to improve by huge margin, got SET & GET at 180K RPS (10K concurrent clients, each sending 100K requests)
+
+### Future Enhancements
+- AOF, append only file and persistence to disk
+- make it distributed, reliable, available, fault-tolerant
 
 upcoming
 - [x] write server doc
@@ -20,9 +25,6 @@ upcoming
 - [ ] write doc
     - should include parsing protocol
     - should include reader strategies, types of reader, byte reader, bulk reading
-    - should include concurrent map
-    - should include TTL
-    - should include logging vs printing : may drop this doc, since it's pretty obvious to have logs instead of printf
     - hashing that is used to select from multiple maps
 - [x] multiple maps for better concurrency
 - [x] utilize size of string to have bulk reading in client reading
