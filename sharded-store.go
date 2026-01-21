@@ -7,12 +7,12 @@ type ShardedStore struct {
 	count  int
 }
 
-func GetNewShardedStore(shardCount int) *ShardedStore {
+func GetNewShardedStore(shardsCount int) *ShardedStore {
 	store := &ShardedStore{
-		shards: make([]*kvstore, shardCount),
-		count:  shardCount,
+		shards: make([]*kvstore, shardsCount),
+		count:  shardsCount,
 	}
-	for i := range shardCount {
+	for i := range shardsCount {
 		store.shards[i] = &kvstore{mp: make(map[string]Entry)}
 		go store.shards[i].StartStoreCleaner()
 	}
@@ -34,6 +34,12 @@ func (kv *ShardedStore) DeleteKey(key string) {
 	store.shards[h].DeleteKey(key)
 }
 
+/*
+FNV is
+- non cryptographic
+- fast
+- uniform distribution
+*/
 func getKeyHash(key string) int64 {
 	hs := fnv.New32a()
 	hs.Write([]byte(key))

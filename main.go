@@ -18,7 +18,7 @@ const (
 	READ_DEADLINE_TIME = 60
 	MAX_CLIENT_CONN    = 12000
 	MAX_KEY_VAL_SIZE   = 1000
-	CLEANER_FREQUENCY  = 40
+	CLEANER_FREQUENCY  = 40 // in seconds
 	NUMBER_OF_SHARDS   = 32
 )
 
@@ -46,11 +46,7 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
-	var wg sync.WaitGroup
-
-	clientsLimiter := make(chan struct{}, MAX_CLIENT_CONN)
-
-	go handleClients(listener, &wg, clientsLimiter)
+	go handleClients(listener)
 
 	<-quit
 
@@ -58,14 +54,14 @@ func main() {
 	listener.Close()
 	close(quit)
 
-	slog.Info("waiting for active connections to close!")
-	wg.Wait()
-
 	slog.Info("all connections closed.")
 }
 
-func handleClients(listener net.Listener, wg *sync.WaitGroup, clientsLimiter chan struct{}) {
+func handleClients(listener net.Listener) {
 	slog.Info("Press CTRL+C to stop gracefully")
+
+	clientsLimiter := make(chan struct{}, MAX_CLIENT_CONN)
+	var wg sync.WaitGroup
 
 	for {
 		conn, err := listener.Accept()
@@ -74,7 +70,7 @@ func handleClients(listener net.Listener, wg *sync.WaitGroup, clientsLimiter cha
 			// this specific error mostly occurs due to listener.Close()
 			// we want to ignore that error and exit the goroutine
 			if strings.Contains(err.Error(), "use of closed network connection") {
-				return
+				break
 			} else {
 				slog.Error("error while accepting new client connection: ", "ERROR", err.Error())
 				continue
@@ -84,8 +80,11 @@ func handleClients(listener net.Listener, wg *sync.WaitGroup, clientsLimiter cha
 		clientsLimiter <- struct{}{}
 
 		wg.Add(1)
-		go handleClientConnection(conn, wg, clientsLimiter)
+		go handleClientConnection(conn, &wg, clientsLimiter)
 	}
+
+	slog.Info("waiting for active connections to close!")
+	wg.Wait()
 }
 
 func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter chan struct{}) {
