@@ -22,7 +22,7 @@ const (
 	NUMBER_OF_SHARDS   = 32
 )
 
-var store *ShardedStore
+var store *ShardedKVStore
 
 // concurrent tcp-server
 // graceful shutdown
@@ -33,7 +33,7 @@ func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
 
-	store = GetNewShardedStore(NUMBER_OF_SHARDS)
+	store = GetNewShardedKVStore(NUMBER_OF_SHARDS)
 
 	listener, err := net.Listen("tcp", ":6379")
 	if err != nil {

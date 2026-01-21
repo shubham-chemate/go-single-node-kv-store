@@ -11,13 +11,13 @@ type Entry struct {
 	expiresAt int64 // unix milli, -1 for never expiring
 }
 
-type kvstore struct {
+type KVStore struct {
 	mp map[string]Entry
 	mu sync.RWMutex
 }
 
 // if value already exist, override it
-func (kv *kvstore) SetValue(key, val string, ttlInSecond int64) {
+func (kv *KVStore) SetValue(key, val string, ttlInSecond int64) {
 	kv.mu.Lock()
 	defer kv.mu.Unlock()
 	// ttl seconds from now
@@ -29,7 +29,7 @@ func (kv *kvstore) SetValue(key, val string, ttlInSecond int64) {
 	kv.mp[key] = Entry{val, expirationTime}
 }
 
-func (kv *kvstore) GetValue(key string) string {
+func (kv *KVStore) GetValue(key string) string {
 	kv.mu.RLock()
 	defer kv.mu.RUnlock()
 	entry, ok := kv.mp[key]
@@ -42,14 +42,14 @@ func (kv *kvstore) GetValue(key string) string {
 	return entry.val
 }
 
-func (kv *kvstore) DeleteKey(key string) {
+func (kv *KVStore) DeleteKey(key string) {
 	kv.mu.Lock()
 	defer kv.mu.Unlock()
 	delete(kv.mp, key)
 }
 
 // in one iteration we only check 20% random keys from map
-func (kv *kvstore) StartStoreCleaner() {
+func (kv *KVStore) StartStoreCleaner() {
 	ticker := time.NewTicker(CLEANER_FREQUENCY * time.Second)
 	datasetSize := len(kv.mp) / 5
 	for range ticker.C {

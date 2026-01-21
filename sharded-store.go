@@ -2,13 +2,13 @@ package main
 
 import "hash/fnv"
 
-type ShardedStore struct {
-	shards []*kvstore
+type ShardedKVStore struct {
+	shards []*KVStore
 	count  int
 }
 
-func GetNewShardedStore(shardsCount int) *ShardedStore {
-	store := &ShardedStore{
+func GetNewShardedKVStore(shardsCount int) *ShardedKVStore {
+	store := &ShardedKVStore{
 		shards: make([]*kvstore, shardsCount),
 		count:  shardsCount,
 	}
@@ -19,17 +19,17 @@ func GetNewShardedStore(shardsCount int) *ShardedStore {
 	return store
 }
 
-func (store *ShardedStore) SetValue(key, val string, ttlInSecond int64) {
+func (store *ShardedKVStore) SetValue(key, val string, ttlInSecond int64) {
 	h := getKeyHash(key)
 	store.shards[h].SetValue(key, val, ttlInSecond)
 }
 
-func (kv *ShardedStore) GetValue(key string) string {
+func (kv *ShardedKVStore) GetValue(key string) string {
 	h := getKeyHash(key)
 	return store.shards[h].GetValue(key)
 }
 
-func (kv *ShardedStore) DeleteKey(key string) {
+func (kv *ShardedKVStore) DeleteKey(key string) {
 	h := getKeyHash(key)
 	store.shards[h].DeleteKey(key)
 }
