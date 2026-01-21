@@ -9,11 +9,11 @@ type ShardedKVStore struct {
 
 func GetNewShardedKVStore(shardsCount int) *ShardedKVStore {
 	store := &ShardedKVStore{
-		shards: make([]*kvstore, shardsCount),
+		shards: make([]*KVStore, shardsCount),
 		count:  shardsCount,
 	}
 	for i := range shardsCount {
-		store.shards[i] = &kvstore{mp: make(map[string]Entry)}
+		store.shards[i] = &KVStore{mp: make(map[string]Entry)}
 		go store.shards[i].StartStoreCleaner()
 	}
 	return store
