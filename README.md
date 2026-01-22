@@ -6,8 +6,9 @@
 - After removing the unecessary logs and optimizing logging for readability, was able to improve by huge margin, got SET & GET at 180K RPS (10K concurrent clients, each sending 100K requests)
 
 ### Future Enhancements
-- AOF, append only file and persistence to disk
-- make it distributed, reliable, available, fault-tolerant
+- [x] AOF, append only file and persistence to disk
+- [x] Additional logging to print current number of active clients
+- [x] make it distributed, reliable, available, fault-tolerant
 
 upcoming
 - [x] write server doc
@@ -22,10 +23,6 @@ upcoming
         - eviction on query
     - add TTL in RESP
 - [x] remove fmt.Printf, adder logger
-- [ ] write doc
-    - should include parsing protocol
-    - should include reader strategies, types of reader, byte reader, bulk reading
-    - hashing that is used to select from multiple maps
 - [x] multiple maps for better concurrency
 - [x] utilize size of string to have bulk reading in client reading
 - [ ] add log / goroutine for current active clients, current cache size (printing after every xy seconds)

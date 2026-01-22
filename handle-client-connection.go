@@ -30,13 +30,11 @@ func handleClient(conn net.Conn, wg *sync.WaitGroup, clientsLimiter chan struct{
 	logger.Info("client connected")
 
 	reader := bufio.NewReader(conn)
-	// scanner := bufio.NewScanner(conn)
-	// buffer := make([]byte, 1024)
 
 	for {
 		// *3\r\n$3\r\nSET\r\n$3\r\npin\r\n$6\r\n414103\r\n
 
-		message, err := readSizeFromClient(reader)
+		message, err := readSizeInput(reader)
 		if err != nil {
 			logger.Info("client disconnected", "msg", err.Error())
 			resp := "-ERR connection closed\r\n"
@@ -66,7 +64,7 @@ func handleClient(conn net.Conn, wg *sync.WaitGroup, clientsLimiter chan struct{
 
 		inputCommand := []string{}
 		for range arraySize {
-			message, err := readSizeFromClient(reader)
+			message, err := readSizeInput(reader)
 			if err != nil {
 				logger.Info("client disconnected", "msg", err.Error())
 				resp := "-ERR CONNECTION CLOSED\r\n"
@@ -104,7 +102,7 @@ func handleClient(conn net.Conn, wg *sync.WaitGroup, clientsLimiter chan struct{
 				return
 			}
 
-			message, err = readStringOfGivenSize(clientAddress, reader, cmdSize)
+			message, err = readTextInput(reader, cmdSize)
 			if err != nil {
 				logger.Info("client disconnected", "msg", err.Error())
 				resp := "-ERR CONNECTION CLOSED\r\n"
@@ -124,31 +122,6 @@ func handleClient(conn net.Conn, wg *sync.WaitGroup, clientsLimiter chan struct{
 			conn.Write([]byte(resp))
 			return
 		}
-
-		// message := scanner.Text()
-
-		// n, err := conn.Read(buffer)
-		// if err != nil {
-		// 	if err == io.EOF {
-		// 		fmt.Printf("[%s] got EOF (nothing to read): %s\n", clientAddress, err)
-		// 	} else {
-		// 		fmt.Printf("[%s] error while reading from connection: %s\n", clientAddress, err)
-		// 	}
-		// 	return
-		// }
-
-		// message := string(buffer[:n])
-
-		// message = strings.TrimSpace(message)
-		// fmt.Printf("[%s] received message: %s\n", clientAddress, message)
-
-		// time.Sleep(3 * time.Second)
-
-		// resp := fmt.Sprintf("ACK: %s\n", message)
 		conn.Write([]byte(resp))
 	}
-
-	// if err := scanner.Err(); err != nil {
-	// 	fmt.Println("error in scanner:", err)
-	// }
 }
