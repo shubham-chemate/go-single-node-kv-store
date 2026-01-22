@@ -42,7 +42,7 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
-	go handleClients(listener)
+	go handleConnections(listener)
 
 	<-quit
 
@@ -53,7 +53,7 @@ func main() {
 	slog.Info("all connections closed.")
 }
 
-func handleClients(listener net.Listener) {
+func handleConnections(listener net.Listener) {
 	slog.Info("Press CTRL+C to stop gracefully")
 
 	clientsLimiter := make(chan struct{}, MAX_CLIENT_CONN)
@@ -76,7 +76,7 @@ func handleClients(listener net.Listener) {
 		clientsLimiter <- struct{}{}
 
 		wg.Add(1)
-		go handleClientConnection(conn, &wg, clientsLimiter)
+		go handleClient(conn, &wg, clientsLimiter)
 	}
 
 	slog.Info("waiting for active connections to close!")

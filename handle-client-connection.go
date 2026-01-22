@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter chan struct{}) {
+func handleClient(conn net.Conn, wg *sync.WaitGroup, clientsLimiter chan struct{}) {
 	defer func() { <-clientsLimiter }()
 	defer wg.Done()
 	defer conn.Close()
@@ -36,7 +36,7 @@ func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter ch
 	for {
 		// *3\r\n$3\r\nSET\r\n$3\r\npin\r\n$6\r\n414103\r\n
 
-		message, err := readSizeFromClient(clientAddress, reader)
+		message, err := readSizeFromClient(reader)
 		if err != nil {
 			logger.Info("client disconnected", "msg", err.Error())
 			resp := "-ERR connection closed\r\n"
@@ -66,7 +66,7 @@ func handleClientConnection(conn net.Conn, wg *sync.WaitGroup, clientsLimiter ch
 
 		inputCommand := []string{}
 		for range arraySize {
-			message, err := readSizeFromClient(clientAddress, reader)
+			message, err := readSizeFromClient(reader)
 			if err != nil {
 				logger.Info("client disconnected", "msg", err.Error())
 				resp := "-ERR CONNECTION CLOSED\r\n"

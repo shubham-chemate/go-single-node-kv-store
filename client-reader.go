@@ -6,7 +6,7 @@ import (
 	"io"
 )
 
-func readSizeFromClient(clientAddress string, reader *bufio.Reader) (string, error) {
+func readSizeFromClient(reader *bufio.Reader) (string, error) {
 	input := []byte{}
 	for {
 		b, err := reader.ReadByte()
@@ -25,9 +25,6 @@ func readSizeFromClient(clientAddress string, reader *bufio.Reader) (string, err
 	}
 
 	resp := string(input)
-
-	// slog.Info("reading size from client", "client_address", clientAddress, "read", resp)
-
 	return resp, nil
 }
 
