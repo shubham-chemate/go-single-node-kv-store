@@ -2,7 +2,7 @@
 
 - In the ./doc folder, I've written every small decisions and learnings. I've typed all by myself and not used LLM for even a single word
 - Logs are much better for concurrent applications since they are thread safe, just mentioning.
-- Initially the performance with log of logs was too bad, we were hitting on an average 13K RPS for SET and 10K RPS for GET, the bottleneck was I was printing every single read command to the log (10K concurrent clients, each sending 100K requests)
+- Initially the performance with lots of logs was too bad, we were hitting on an average 13K RPS for SET and 10K RPS for GET, the bottleneck was I was printing every single read command to the log (10K concurrent clients, each sending 100K requests)
 - After removing the unecessary logs and optimizing logging for readability, was able to improve by huge margin, got SET & GET at 180K RPS (10K concurrent clients, each sending 100K requests)
 
 ### Future Enhancements
