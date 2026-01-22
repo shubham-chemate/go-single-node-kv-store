@@ -5,6 +5,40 @@
 - Initially the performance with lots of logs was too bad, we were hitting on an average 13K RPS for SET and 10K RPS for GET, the bottleneck was I was printing every single read command to the log (10K concurrent clients, each sending 100K requests)
 - After removing the unecessary logs and optimizing logging for readability, was able to improve by huge margin, got SET & GET at 180K RPS (10K concurrent clients, each sending 100K requests)
 
+### Architecture
+## Architecture
+
+┌─────────────┐
+│   Client    │
+└──────┬──────┘
+       │ RESP Protocol
+       ▼
+┌─────────────────────────┐
+│  TCP Server (port 6379) │
+│  ├─ Connection Limiter  │
+│  └─ Read Timeout        │
+└──────────┬──────────────┘
+           │
+           ▼
+┌──────────────────────────┐
+│  Command Processor       │
+│  ├─ SET/GET/DEL          │
+│  └─ Input Validation     │
+└──────────┬───────────────┘
+           │
+           ▼
+┌──────────────────────────┐
+│  Sharded Concurrent Maps │
+│  ├─ Hash-based sharding  │
+│  └─ Per-shard RWMutex    │
+└──────────┬───────────────┘
+           │
+           ▼
+┌──────────────────────────┐
+│  TTL Cleaner (goroutine) │
+│  └─ Periodic eviction    │
+└──────────────────────────┘
+
 ### Future Enhancements
 - [ ] AOF, append only file and persistence to disk
 - [ ] Additional logging to print current number of active clients
