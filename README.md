@@ -6,9 +6,9 @@
 - After removing the unecessary logs and optimizing logging for readability, was able to improve by huge margin, got SET & GET at 180K RPS (10K concurrent clients, each sending 100K requests)
 
 ### Future Enhancements
-- [x] AOF, append only file and persistence to disk
-- [x] Additional logging to print current number of active clients
-- [x] make it distributed, reliable, available, fault-tolerant
+- [ ] AOF, append only file and persistence to disk
+- [ ] Additional logging to print current number of active clients
+- [ ] make it distributed, reliable, available, fault-tolerant
 
 upcoming
 - [x] write server doc
