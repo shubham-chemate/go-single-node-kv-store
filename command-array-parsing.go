@@ -68,7 +68,7 @@ func parseStringSize(reader *bufio.Reader, logger *slog.Logger) (int, error) {
 
 	if !strings.HasPrefix(message, "$") || !strings.HasSuffix(message, "\r\n") {
 		logger.Error("invalid format of string size", "received", message)
-		return 0, fmt.Errorf(errUnknownFormat)
+		return 0, fmt.Errorf(errUnknownFormat, message)
 	}
 
 	message = strings.TrimSpace(message[1:])
