@@ -11,117 +11,171 @@ import (
 	"time"
 )
 
+const (
+	errUnknownFormat     = "-ERR UNKNOWN FORMAT RECEIVED: %s\r\n"
+	errArraySizeParsing  = "-ERR PARSING THE ARRAY SIZE\r\n"
+	errConnectionClosed  = "-ERR CONNECTION CLOSED\r\n"
+	errStringSizeParsing = "-ERR PARSING THE COMMAND STRING SIZE\r\n"
+	errMaxSizeExceeded   = "-ERR COMMAND INPUT EXCEEDED MAX SIZE ALLOWED\r\n"
+	errEmptyCommandSize  = "-ERR EMPTY COMMAND SIZE\r\n"
+	errProcessingCommand = "-ERR PROCESSING THE COMMAND, message: %s\r\n"
+)
+
 func handleClient(conn net.Conn, wg *sync.WaitGroup, clientsLimiter chan struct{}) {
 	defer func() { <-clientsLimiter }()
 	defer wg.Done()
 	defer conn.Close()
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Printf("[%s] panic when processing client, message: %v", conn.RemoteAddr(), r)
-		}
-	}()
+	defer recoverFromPanic(conn)
 
 	clientAddress := conn.RemoteAddr().String()
-
 	logger := slog.With("client_address", clientAddress)
-
-	conn.SetReadDeadline(time.Now().Add(READ_DEADLINE_TIME * time.Second))
-
 	logger.Info("client connected")
 
+	resetReadDeadline(conn)
 	reader := bufio.NewReader(conn)
 
 	for {
 		// *3\r\n$3\r\nSET\r\n$3\r\npin\r\n$6\r\n414103\r\n
-
-		message, err := readSizeInput(reader)
-		if err != nil {
-			logger.Info("client disconnected", "msg", err.Error())
-			resp := "-ERR connection closed\r\n"
-			conn.Write([]byte(resp))
+		if err := processRequest(conn, reader, logger); err != nil {
 			return
 		}
-		conn.SetReadDeadline(time.Now().Add(READ_DEADLINE_TIME * time.Second))
-
-		if !strings.HasPrefix(message, "*") || !strings.HasSuffix(message, "\r\n") {
-			logger.Error("unknown format for size of array")
-			resp := "-ERR UNKNOWN FORMAT received: " + message + "\r\n"
-			conn.Write([]byte(resp))
-			return
-		}
-
-		message = strings.TrimSpace(message[1:])
-
-		arraySize, err := strconv.Atoi(message)
-		if err != nil {
-			logger.Error("invalid value for array size", "received", message, "msg", err.Error())
-			resp := "-ERR PARSING THE ARRAY SIZE\r\n"
-			conn.Write([]byte(resp))
-			return
-		}
-
-		// logger.Info("reading array", "size", arraySize)
-
-		inputCommand := []string{}
-		for range arraySize {
-			message, err := readSizeInput(reader)
-			if err != nil {
-				logger.Info("client disconnected", "msg", err.Error())
-				resp := "-ERR CONNECTION CLOSED\r\n"
-				conn.Write([]byte(resp))
-				return
-			}
-			conn.SetReadDeadline(time.Now().Add(READ_DEADLINE_TIME * time.Second))
-
-			if !strings.HasPrefix(message, "$") || !strings.HasSuffix(message, "\r\n") {
-				logger.Error("invalid format of string size", "received", message)
-				resp := "-ERR UNKNOWN FORMAT received: " + message + "\r\n"
-				conn.Write([]byte(resp))
-				return
-			}
-
-			message = strings.TrimSpace(message[1:])
-			cmdSize, err := strconv.Atoi(message)
-			if err != nil {
-				logger.Error("invalid value of string size", "received", message, "msg", err.Error())
-				resp := "-ERR PARSING THE COMMAND STRING SIZE\r\n"
-				conn.Write([]byte(resp))
-				return
-			}
-			// put limit on cmdSize, thinking about 64K Bytes
-			if cmdSize > MAX_KEY_VAL_SIZE {
-				logger.Error("string size exceeded max size allowed", "allowed", MAX_KEY_VAL_SIZE, "given", cmdSize)
-				resp := "-ERR command input exceeded max size allowed\r\n"
-				conn.Write([]byte(resp))
-				return
-			}
-			if cmdSize < 1 {
-				logger.Error("empty command size not allowed")
-				resp := "-ERR empty command size\r\n"
-				conn.Write([]byte(resp))
-				return
-			}
-
-			message, err = readTextInput(reader, cmdSize)
-			if err != nil {
-				logger.Info("client disconnected", "msg", err.Error())
-				resp := "-ERR CONNECTION CLOSED\r\n"
-				conn.Write([]byte(resp))
-				return
-			}
-			conn.SetReadDeadline(time.Now().Add(READ_DEADLINE_TIME * time.Second))
-
-			message = strings.TrimSpace(message)
-			inputCommand = append(inputCommand, message)
-		}
-
-		resp, err := ProcessCommand(clientAddress, inputCommand)
-		if err != nil {
-			logger.Info("error occurred while processing the command", "command", inputCommand)
-			resp := "-ERR PROCESSING THE COMMAND, message: " + err.Error() + "\r\n"
-			conn.Write([]byte(resp))
-			return
-		}
-		conn.Write([]byte(resp))
 	}
+}
+
+func processRequest(conn net.Conn, reader *bufio.Reader, logger *slog.Logger) error {
+
+	arraySize, err := parseArraySize(reader, logger)
+	if err != nil {
+		writeError(conn, err.Error())
+		return err
+	}
+
+	resetReadDeadline(conn)
+
+	inputCommand, err := parseCommandArray(conn, reader, logger, arraySize)
+	if err != nil {
+		writeError(conn, err.Error())
+		return err
+	}
+
+	resetReadDeadline(conn)
+
+	resp, err := ProcessCommand(inputCommand)
+	if err != nil {
+		logger.Info("error occurred while processing the command", "command", inputCommand)
+		writeError(conn, fmt.Sprintf(errProcessingCommand, err.Error()))
+		return err
+	}
+
+	conn.Write([]byte(resp))
+	return nil
+}
+
+func parseCommandArray(conn net.Conn, reader *bufio.Reader, logger *slog.Logger, arraySize int) ([]string, error) {
+	inputCommand := make([]string, 0)
+
+	for range arraySize {
+		resetReadDeadline(conn)
+
+		cmdSize, err := parseStringSize(reader, logger)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := validateCommandSize(cmdSize, logger); err != nil {
+			return nil, err
+		}
+
+		resetReadDeadline(conn)
+
+		text, err := readAndParseText(reader, logger, cmdSize)
+		if err != nil {
+			return nil, err
+		}
+
+		inputCommand = append(inputCommand, text)
+	}
+
+	return inputCommand, nil
+}
+
+func readAndParseText(reader *bufio.Reader, logger *slog.Logger, cmdSize int) (string, error) {
+	message, err := readTextInput(reader, cmdSize)
+	if err != nil {
+		logger.Info("client disconnected", "msg", err.Error())
+		return "", fmt.Errorf(errConnectionClosed)
+	}
+
+	return strings.TrimSpace(message), nil
+}
+
+func validateCommandSize(cmdSize int, logger *slog.Logger) error {
+	if cmdSize > MAX_KEY_VAL_SIZE {
+		logger.Error("string size exceeded max size allowed", "allowed", MAX_KEY_VAL_SIZE, "given", cmdSize)
+		return fmt.Errorf(errMaxSizeExceeded)
+	}
+	if cmdSize < 1 {
+		logger.Error("empty command size not allowed")
+		return fmt.Errorf(errEmptyCommandSize)
+	}
+	return nil
+}
+
+func parseStringSize(reader *bufio.Reader, logger *slog.Logger) (int, error) {
+	message, err := readSizeInput(reader)
+	if err != nil {
+		logger.Info("client disconnected", "msg", err.Error())
+		return 0, fmt.Errorf(errConnectionClosed)
+	}
+
+	if !strings.HasPrefix(message, "$") || !strings.HasSuffix(message, "\r\n") {
+		logger.Error("invalid format of string size", "received", message)
+		return 0, fmt.Errorf(errUnknownFormat)
+	}
+
+	message = strings.TrimSpace(message[1:])
+	cmdSize, err := strconv.Atoi(message)
+	if err != nil {
+		logger.Error("invalid value of string size", "received", message, "msg", err.Error())
+		return 0, fmt.Errorf(errStringSizeParsing)
+	}
+
+	return cmdSize, nil
+}
+
+func parseArraySize(reader *bufio.Reader, logger *slog.Logger) (int, error) {
+	message, err := readSizeInput(reader)
+	if err != nil {
+		logger.Info("client disconnected", "msg", err.Error())
+		return 0, fmt.Errorf(errConnectionClosed)
+	}
+
+	if !strings.HasPrefix(message, "*") || !strings.HasSuffix(message, "\r\n") {
+		logger.Error("unknown format for size of array")
+		return 0, fmt.Errorf(errUnknownFormat, message)
+	}
+
+	message = strings.TrimSpace(message[1:])
+
+	arraySize, err := strconv.Atoi(message)
+	if err != nil {
+		logger.Error("invalid value for array size", "received", message, "msg", err.Error())
+		return 0, fmt.Errorf(errArraySizeParsing)
+	}
+
+	return arraySize, nil
+}
+
+func writeError(conn net.Conn, errMessage string) {
+	conn.Write([]byte(errMessage))
+}
+
+func recoverFromPanic(conn net.Conn) {
+	if r := recover(); r != nil {
+		fmt.Printf("[%s] panic when processing client, message: %v", conn.RemoteAddr(), r)
+	}
+}
+
+func resetReadDeadline(conn net.Conn) {
+	conn.SetReadDeadline(time.Now().Add(READ_DEADLINE_TIME * time.Second))
 }

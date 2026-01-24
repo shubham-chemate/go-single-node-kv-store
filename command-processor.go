@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func ProcessCommand(clientAddress string, cmd []string) (string, error) {
+func ProcessCommand(cmd []string) (string, error) {
 	if len(cmd) < 1 {
 		return "", fmt.Errorf("INVALID COMMAND LENGTH")
 	}
