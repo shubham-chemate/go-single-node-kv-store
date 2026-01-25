@@ -9,7 +9,7 @@
 
 testing command:
 ```shell 
-redis-benchmark -p 6379 -t set,get -c 10000 -n 1000000 -q
+\# redis-benchmark -p 6379 -t set,get -c 10000 -n 1000000 -q
 ```
 configuration:
 ```go
