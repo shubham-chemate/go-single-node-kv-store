@@ -5,10 +5,12 @@
 - Initially the performance with lots of logs was too bad, we were hitting on an average 13K RPS for SET and 10K RPS for GET, the bottleneck was I was printing every single read command to the log (10K concurrent clients, each sending 100K requests)
 - After removing the unecessary logs and optimizing logging for readability, was able to improve by huge margin, got SET & GET at 180K RPS (10K concurrent clients, sending 100K requests)
 
-<details>
-<summary>Performance Testing</summary>
+## Performance Testing
 
-testing command: redis-benchmark -p 6379 -t set,get -c 10000 -n 1000000 -q
+testing command:
+```shell 
+redis-benchmark -p 6379 -t set,get -c 10000 -n 1000000 -q
+```
 configuration:
 ```go
 	READ_DEADLINE_TIME = 60
@@ -24,8 +26,6 @@ configuration:
 **Redis**
 - SET: 181K RPS, p50=27.8 ms
 - GET: 177K RPS, p50=28.1 ms
-
-</details>
 
 ### Future Enhancements
 - [ ] AOF, append only file and persistence to disk
