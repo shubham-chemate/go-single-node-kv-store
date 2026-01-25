@@ -9,7 +9,7 @@
 
 testing command:
 ```shell 
-\# redis-benchmark -p 6379 -t set,get -c 10000 -n 1000000 -q
+./# redis-benchmark -p 6379 -t set,get -c 10000 -n 1000000 -q
 ```
 configuration:
 ```go
@@ -17,13 +17,15 @@ configuration:
 	MAX_CLIENT_CONN    = 12000
 	MAX_KEY_VAL_SIZE   = 1000
 	CLEANER_FREQUENCY  = 40
+
+	Macbook M4 Pro, 24 GB Ram, VS Code devcontainer, Go Alpine Image
 ```
 
-**Our key value store**
+Our key value store
 - SET: 139K RPS, p50=36.8 ms
 - GET: 141K RPS, p50=36.3 ms
 
-**Redis**
+Redis
 - SET: 181K RPS, p50=27.8 ms
 - GET: 177K RPS, p50=28.1 ms
 
