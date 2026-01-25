@@ -8,6 +8,5 @@
       ]
     }
   },
-  // Installs git automatically so 'go get' works for dependencies
-  "postCreateCommand": "apk update && apk add git"
+  "postCreateCommand": "apk update && apk add git redis"
 }
